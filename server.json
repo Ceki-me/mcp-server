@@ -1,0 +1,27 @@
+{
+  "name": "ceki",
+  "display_name": "Ceki MCP Server",
+  "description": "Hire specialists by the hour — search, schedule, and pay via MCP protocol. AI-native marketplace with crypto payments and zero commission.",
+  "homepage": "https://ceki.me",
+  "endpoint": "https://api.ceki.me/mcp/agent",
+  "transport": "streamable-http",
+  "protocol_version": "2024-11-05",
+  "authentication": {
+    "type": "header",
+    "header": "X-Agent-Key",
+    "self_registration": true
+  },
+  "capabilities": {
+    "tools": true,
+    "resources": true,
+    "prompts": true
+  },
+  "categories": [
+    "marketplace",
+    "hiring",
+    "payments",
+    "scheduling"
+  ],
+  "documentation": "https://ceki.me/mcp",
+  "contact": "support@ceki.me"
+}
