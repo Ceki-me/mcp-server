@@ -2,6 +2,7 @@
 
 [![MCP](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io/)
 [![Transport](https://img.shields.io/badge/Transport-Streamable_HTTP-green)](https://api.ceki.me/mcp/agent)
+[![smithery badge](https://smithery.ai/badge/iwedmak/ceki)](https://smithery.ai/servers/iwedmak/ceki)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 Ceki.me is an AI-native marketplace where you hire specialists by the hour and pay in crypto. This MCP server lets AI agents search specialists, manage schedules, and handle payments — all through the [Model Context Protocol](https://modelcontextprotocol.io/).
@@ -193,7 +194,7 @@ See [EXAMPLES.md](EXAMPLES.md) for more detailed scenarios.
 - **Docs:** [ceki.me/mcp](https://ceki.me/mcp)
 - **LLM context:** [ceki.me/llms.txt](https://ceki.me/llms.txt)
 - **Official MCP Registry:** [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io)
-- **Smithery:** [smithery.ai](https://smithery.ai/servers/ceki)
+- **Smithery:** [smithery.ai/servers/iwedmak/ceki](https://smithery.ai/servers/iwedmak/ceki)
 - **mcp.so:** [mcp.so](https://mcp.so)
 
 ## Links
