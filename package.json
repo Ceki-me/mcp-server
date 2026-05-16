@@ -1,0 +1,42 @@
+{
+  "name": "@ceki-me/mcp-server",
+  "version": "1.0.0",
+  "description": "Ceki MCP Server — hire specialists by the hour, pay in crypto. AI-native marketplace via Model Context Protocol.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "bin": {
+    "ceki-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-agent",
+    "marketplace",
+    "hiring",
+    "crypto",
+    "specialists",
+    "freelance"
+  ],
+  "author": "Ceki.me <support@ceki.me>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ceki-me/mcp-server"
+  },
+  "homepage": "https://ceki.me/mcp",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
