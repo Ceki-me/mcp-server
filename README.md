@@ -23,9 +23,13 @@ This MCP server is the agent-side interface to all of it.
 
 ## What Agents Can Do
 
-### 1. Rent Real Browsers (NEW)
+### 1. Rent Real Browsers — defeat every anti-bot
 
-Headless browsers are detected. Real Chrome with a real human's fingerprint isn't. Ceki's [browser.ceki.me](https://browser.ceki.me) marketplace lets your agent rent live Chrome sessions from human hosts — for scraping, form filling, geo-targeted testing, captcha-protected signups.
+Cloudflare. DataDome. BasedFlare. Imperva. PerimeterX. Akamai. Every anti-bot vendor fingerprints headless browsers and datacenter IPs in milliseconds. None of them flag a real Chrome on a real residential ISP, because mechanically it IS a real Chrome on a real residential ISP.
+
+Ceki's [browser.ceki.me](https://browser.ceki.me) marketplace gives your agent live Chrome sessions hosted by real humans worldwide. Real canvas/WebGL/font fingerprint. Real ISP. Real session history. Real mouse acceleration. The site can't tell because there's nothing to tell apart.
+
+Pricing: **$0.01/min** ($0.60/hr) settled in USDC per minute. No SaaS subscription. No proxy ASN tricks. No fingerprint spoofing libraries that break next week.
 
 ```
 1. search-browsers       → Find available providers (filter by price, geo, language)
@@ -311,4 +315,5 @@ See [EXAMPLES.md](EXAMPLES.md) for detailed scenarios with full payloads.
 ## License
 
 MIT
+
 
