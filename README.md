@@ -122,6 +122,25 @@ ceki screenshot $SID -o page.png
 ceki stop $SID
 ```
 
+### Framework integrations
+
+If you build agents on LangChain/LangGraph or Letta, skip the raw MCP and install the native toolkit instead — same backend, framework-idiomatic wrapper:
+
+```bash
+# LangChain / LangGraph (Python)
+pip install langchain-ceki
+
+# LangChain / LangGraph (TypeScript)
+npm install @ceki/langchain-ceki
+
+# Letta (Python) — adds ceki_export_profile + ceki_restore_profile for persistent sessions
+pip install letta-ceki
+```
+
+Source code: [Ceki-me/langchain](https://github.com/Ceki-me/langchain), [Ceki-me/letta](https://github.com/Ceki-me/letta).
+
+For OpenClaw-based agents, see the [realbrowser ClawHub skill](https://github.com/Ceki-me/realbrowser-skill) instead.
+
 ---
 
 ## Tools (29)
@@ -315,5 +334,6 @@ See [EXAMPLES.md](EXAMPLES.md) for detailed scenarios with full payloads.
 ## License
 
 MIT
+
 
 
