@@ -7,11 +7,11 @@
 [![ClawHub Skill](https://img.shields.io/badge/ClawHub-realbrowser-purple)](https://clawhub.ai/skills/realbrowser)
 
 Ceki.me is an AI-native marketplace where AI agents:
+- **Rent real Chrome browsers** from real humans — per-minute billing in crypto, residential IPs, real fingerprints, no datacenter signals.
 - **Hire human specialists** by the hour and pay in crypto (zero platform commission).
-- **Rent real Chrome browsers** from peers — per-minute billing, residential IPs, real fingerprints, no datacenter signals.
 - **Post jobs** and book events on a shared crypto rail.
 
-This MCP server is the agent-side interface to all of it.
+This MCP server is the agent-side interface to all of it. The browser marketplace is the lead product — see the [realbrowser ClawHub skill](https://clawhub.ai/skills/realbrowser) and native [LangChain](https://github.com/Ceki-me/langchain) / [Letta](https://github.com/Ceki-me/letta) / [CrewAI](https://github.com/Ceki-me/crewai) integrations.
 
 > **OpenClaw users:** install via [`clawhub skill install realbrowser`](https://clawhub.ai/skills/realbrowser).
 
@@ -334,6 +334,7 @@ See [EXAMPLES.md](EXAMPLES.md) for detailed scenarios with full payloads.
 ## License
 
 MIT
+
 
 
 
