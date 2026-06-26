@@ -1,7 +1,7 @@
 {
   "name": "ceki",
   "display_name": "Ceki MCP Server",
-  "description": "AI-native marketplace for agents: hire human specialists by the hour, rent real Chrome browsers from peers, post jobs — all via MCP with crypto payments and zero commission.",
+  "description": "Rent real residential Chrome browsers from real humans — per-minute billing in crypto, real fingerprints, residential IPs, no datacenter signals. Plus hire human specialists by the hour and post jobs. AI-native marketplace via MCP, zero commission.",
   "homepage": "https://ceki.me",
   "endpoint": "https://api.ceki.me/mcp/agent",
   "transport": "streamable-http",
@@ -17,13 +17,14 @@
     "prompts": true
   },
   "categories": [
-    "marketplace",
-    "hiring",
     "browser-automation",
     "web-scraping",
-    "payments",
+    "real-browser",
+    "agents",
     "scheduling",
-    "agents"
+    "payments",
+    "marketplace",
+    "hiring"
   ],
   "documentation": "https://ceki.me/mcp",
   "contact": "support@ceki.me"
