@@ -1,0 +1,99 @@
+name: Submit Ceki to Directories
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Submit to:'
+        required: true
+        default: 'awesome-mcp-servers'
+        type: choice
+        options:
+          - awesome-mcp-servers
+          - browser-use
+          - both
+
+env:
+  GH_TOKEN: ${{ secrets.PUBLIC_REPO_PAT || secrets.GITHUB_TOKEN }}
+
+jobs:
+  submit-awesome-mcp-servers:
+    if: ${{ github.event.inputs.target == 'awesome-mcp-servers' || github.event.inputs.target == 'both' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout awesome-mcp-servers
+        uses: actions/checkout@v4
+        with:
+          repository: punkpeye/awesome-mcp-servers
+          fetch-depth: 0
+
+      - name: Add Ceki entry to README
+        run: |
+          ENTRY="- [Ceki Browser Rental](https://browser.ceki.me) [![Ceki-me/mcp-server MCP server](https://glama.ai/mcp/servers/Ceki-me/mcp-server/badges/score.svg)](https://glama.ai/mcp/servers/Ceki-me/mcp-server) 🐍 ☁️ - Rent real Chrome browsers from real people via MCP. Authentic fingerprints, real residential IPs, per-minute billing. MCP endpoint at \`https://api.ceki.me/mcp/agent\`."
+          LINE=$(grep -n "browserbase/mcp-server-browserbase" README.md | head -1 | cut -d: -f1)
+          sed -i "${LINE}i\\${ENTRY}" README.md
+          git config user.name "Ceki Bot"
+          git config user.email "bot@ceki.me"
+          git add README.md
+          git commit -m "Add Ceki MCP server"
+
+      - name: Fork and create PR
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_PAT }}
+        run: |
+          gh repo fork punkpeye/awesome-mcp-servers --remote=false --default-branch-only
+          sleep 3
+          git remote add myfork "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_ACTOR}/awesome-mcp-servers.git"
+          git push myfork HEAD:add-ceki
+          gh pr create \
+            --repo punkpeye/awesome-mcp-servers \
+            --head "${GITHUB_ACTOR}:add-ceki" \
+            --base main \
+            --title "Add Ceki MCP server 🤖🤖🤖" \
+            --body "Adds [Ceki Browser Rental](https://browser.ceki.me) to the Browser Automation section.
+
+        Ceki is a browser rental marketplace that provides real Chrome browsers from real people via MCP.
+        Unlike headless solutions, Ceki delivers authentic fingerprints, real residential IPs, and genuine user profiles.
+
+        MCP endpoint: \`https://api.ceki.me/mcp/agent\`
+
+        🤖🤖🤖"
+
+  submit-browser-use:
+    if: ${{ github.event.inputs.target == 'browser-use' || github.event.inputs.target == 'both' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create issue on browser-use
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_PAT }}
+        run: |
+          gh issue create \
+            --repo browser-use/browser-use \
+            --title "Feature Request: Ceki as a browser backend for real Chrome rental" \
+            --body "## Problem
+        Browser-Use currently works with Playwright/local browsers and Browser Use Cloud.
+        For users who need **undetectable** browser automation (bypassing Cloudflare, avoiding headless detection, accessing geo-blocked content),
+        local/cloud browsers still look like automation tools to anti-bot systems.
+
+        ## Solution
+        Add [Ceki](https://browser.ceki.me) as an optional browser backend provider.
+        Ceki is a marketplace that rents real Chrome browsers from real people — each browser has authentic fingerprints,
+        real residential IPs, and genuine user profiles.
+
+        ## How it would work
+        1. User configures Ceki API key in browser-use config
+        2. browser-use calls Ceki MCP server (\`rent-browser\` tool) to get a session
+        3. browser-use connects via CDP over WebSocket relay
+        4. All browser operations go through a real Chrome on a real machine
+
+        ## Benefits
+        - **100% undetectable** — real browser, not headless
+        - **Real residential IPs** — no datacenter proxies that get flagged
+        - **Geo-targeting** — browsers from specific countries
+        - **Per-minute pricing** — pay \$0.01/min, no monthly commitment
+
+        ## Links
+        - Ceki MCP docs: https://browser.ceki.me/docs
+        - Ceki MCP server: https://api.ceki.me/mcp/agent
+        - GitHub: https://github.com/Ceki-me
+        "
