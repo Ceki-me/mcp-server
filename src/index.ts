@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { createServer, IncomingMessage, ServerResponse } from "http";
 import { z } from "zod";
 
 const server = new McpServer({
@@ -466,12 +468,123 @@ The whole point of real-Chrome rental is that you do not need to fight bot detec
   })
 );
 
-async function main() {
-  console.error("Ceki MCP Server v1.1.0");
-  console.error("This is a remote server. Connect directly to: https://api.ceki.me/mcp/agent");
-  console.error("");
-  console.error("Add to your MCP config:");
-  console.error(JSON.stringify({ mcpServers: { ceki: { url: "https://api.ceki.me/mcp/agent" } } }, null, 2));
+// --- HTTP Server ---
+
+/**
+ * Map of active SSE transports keyed by session ID.
+ */
+const transports = new Map<string, SSEServerTransport>();
+
+/**
+ * Read the full body from an incoming HTTP request as a UTF-8 string.
+ */
+function readBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+    req.on("error", reject);
+  });
 }
 
-main();
+const PORT = parseInt(process.env.PORT || "3000", 10);
+
+const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+  const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+  const pathname = url.pathname;
+
+  try {
+    // ---- GET /  – health / info endpoint ----
+    if (req.method === "GET" && pathname === "/") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        name: "ceki",
+        version: "1.1.0",
+        description: "Ceki MCP Server — AI-native marketplace for hiring specialists and renting real Chrome browsers",
+        endpoints: {
+          health: "/",
+          sse: "/sse",
+          messages: "/messages",
+        },
+      }));
+      return;
+    }
+
+    // ---- GET /sse – establish SSE transport connection ----
+    if (req.method === "GET" && pathname === "/sse") {
+      const transport = new SSEServerTransport("/messages", res);
+      transports.set(transport.sessionId, transport);
+
+      transport.onclose = () => {
+        transports.delete(transport.sessionId);
+      };
+
+      await server.connect(transport);
+      return;
+    }
+
+    // ---- POST /messages – handle incoming JSON-RPC messages via SSE transport ----
+    if (req.method === "POST" && pathname === "/messages") {
+      const sessionId = url.searchParams.get("sessionId");
+      if (!sessionId) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing sessionId query parameter" }));
+        return;
+      }
+
+      const transport = transports.get(sessionId);
+      if (!transport) {
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Session not found. Establish a connection via GET /sse first." }));
+        return;
+      }
+
+      const body = await readBody(req);
+      await transport.handlePostMessage(req, res, body);
+      return;
+    }
+
+    // ---- 404 for everything else ----
+    res.writeHead(404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Not found", path: pathname }));
+  } catch (err) {
+    console.error("Request error:", err);
+    if (!res.headersSent) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Internal server error" }));
+    }
+  }
+});
+
+httpServer.listen(PORT, () => {
+  console.error(`Ceki MCP Server v1.1.0 running on port ${PORT}`);
+  console.error(`Health:   http://localhost:${PORT}/`);
+  console.error(`SSE:      http://localhost:${PORT}/sse`);
+  console.error(`Messages: POST http://localhost:${PORT}/messages`);
+  console.error("");
+  console.error("Add to your MCP config (SSE):");
+  console.error(JSON.stringify({ mcpServers: { ceki: { url: `http://localhost:${PORT}/sse` } } }, null, 2));
+  console.error("");
+  console.error("Or connect directly to the remote endpoint:");
+  console.error(JSON.stringify({ mcpServers: { ceki: { url: "https://api.ceki.me/mcp/agent" } } }, null, 2));
+});
+
+// ---- Graceful shutdown ----
+process.on("SIGINT", async () => {
+  console.error("\nShutting down ...");
+
+  // Close all active SSE transports
+  for (const [id, transport] of transports) {
+    try {
+      transport.close();
+    } catch {
+      // best-effort per-transport cleanup
+    }
+  }
+  transports.clear();
+
+  httpServer.close(() => {
+    console.error("Server closed.");
+    process.exit(0);
+  });
+});
