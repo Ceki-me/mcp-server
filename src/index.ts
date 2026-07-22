@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { z } from "zod";
 import { connect as sdkConnect, Client, Browser } from "@ceki/sdk";
@@ -795,28 +796,51 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
   }
 });
 
-httpServer.listen(PORT, () => {
-  console.error(`Ceki MCP Server v1.1.0 running on port ${PORT}`);
-  console.error(`Health:   http://localhost:${PORT}/`);
-  console.error(`SSE:      http://localhost:${PORT}/sse`);
-  console.error(`Messages: POST http://localhost:${PORT}/messages`);
-  console.error("");
-  console.error("Add to your MCP config (SSE, no auth for public tools):");
-  console.error(JSON.stringify({ mcpServers: { ceki: { url: `http://localhost:${PORT}/sse` } } }, null, 2));
-  console.error("");
-  console.error("With auth (for browser rental + authenticated tools):");
-  console.error(JSON.stringify({
-    mcpServers: {
-      ceki: {
-        url: `http://localhost:${PORT}/sse`,
-        headers: { "X-Agent-Key": "<your-api-key>" },
+// ---------------------------------------------------------------------------
+// Startup — stdio mode vs HTTP/SSE mode
+// ---------------------------------------------------------------------------
+
+/**
+ * Transport mode selection (priority):
+ *   1. --stdio flag                         → stdio
+ *   2. STDIO=true env                        → stdio
+ *   3. STDIO=false env                       → HTTP SSE (explicit override)
+ *   4. !process.stdin.isTTY (piped, e.g. via mcp-proxy) → stdio auto-detect
+ *   5. default                               → HTTP SSE
+ */
+const STDIO_MODE = process.argv.includes("--stdio")
+  || (process.env.STDIO !== "false" && (process.env.STDIO === "true" || !process.stdin.isTTY));
+
+if (STDIO_MODE) {
+  // ---- Stdio mode (used by mcp-proxy / Glama builds) ----
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("Ceki MCP Server v1.1.0 running on stdio transport");
+} else {
+  // ---- HTTP/SSE mode (default) ----
+  httpServer.listen(PORT, () => {
+    console.error(`Ceki MCP Server v1.1.0 running on port ${PORT}`);
+    console.error(`Health:   http://localhost:${PORT}/`);
+    console.error(`SSE:      http://localhost:${PORT}/sse`);
+    console.error(`Messages: POST http://localhost:${PORT}/messages`);
+    console.error("");
+    console.error("Add to your MCP config (SSE, no auth for public tools):");
+    console.error(JSON.stringify({ mcpServers: { ceki: { url: `http://localhost:${PORT}/sse` } } }, null, 2));
+    console.error("");
+    console.error("With auth (for browser rental + authenticated tools):");
+    console.error(JSON.stringify({
+      mcpServers: {
+        ceki: {
+          url: `http://localhost:${PORT}/sse`,
+          headers: { "X-Agent-Key": "<your-api-key>" },
+        },
       },
-    },
-  }, null, 2));
-  console.error("");
-  console.error("Or connect directly to the remote endpoint:");
-  console.error(JSON.stringify({ mcpServers: { ceki: { url: "https://api.ceki.me/mcp/agent" } } }, null, 2));
-});
+    }, null, 2));
+    console.error("");
+    console.error("Or connect directly to the remote endpoint:");
+    console.error(JSON.stringify({ mcpServers: { ceki: { url: "https://api.ceki.me/mcp/agent" } } }, null, 2));
+  });
+}
 
 // ---- Graceful shutdown ----
 process.on("SIGINT", async () => {
@@ -834,14 +858,18 @@ process.on("SIGINT", async () => {
   }
   clientsByKey.clear();
 
-  // Close all active SSE transports
-  for (const transport of transports.values()) {
-    try { transport.close(); } catch { /* best-effort */ }
-  }
-  transports.clear();
+  if (!STDIO_MODE) {
+    // Close all active SSE transports
+    for (const transport of transports.values()) {
+      try { transport.close(); } catch { /* best-effort */ }
+    }
+    transports.clear();
 
-  httpServer.close(() => {
-    console.error("Server closed.");
+    httpServer.close(() => {
+      console.error("Server closed.");
+      process.exit(0);
+    });
+  } else {
     process.exit(0);
-  });
+  }
 });

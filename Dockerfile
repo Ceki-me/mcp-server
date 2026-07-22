@@ -16,4 +16,8 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 EXPOSE 3000
+
+# Default: HTTP SSE mode on port 3000
+# For stdio mode (e.g. with mcp-proxy), override ENTRYPOINT:
+#   docker run --entrypoint node <image> dist/index.js --stdio
 ENTRYPOINT ["node", "dist/index.js"]
