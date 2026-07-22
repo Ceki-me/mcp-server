@@ -1,0 +1,29 @@
+{
+  "name": "realbrowser-skill",
+  "description": "realbrowser-skill plugin for Cursor",
+  "components": [
+    {
+      "type": "MCP Server",
+      "fields": {
+        "name": "real-browser-ceki",
+        "description": "Rent real residential Chrome browsers from peers via Ceki marketplace",
+        "url": "https://api.ceki.me/mcp/agent",
+        "install": {
+          "pip": "ceki-sdk",
+          "npm": "@ceki/sdk",
+          "env": {
+            "CEKI_API_KEY": "Get from https://ceki.me/dashboard/agents"
+          }
+        }
+      }
+    },
+    {
+      "type": "Skill",
+      "fields": {
+        "name": "real-browser-ceki",
+        "description": "Rent real residential Chrome browsers for AI agents",
+        "content": "# RealBrowser by Ceki\n\nRent a real Chrome browser from a real human via Ceki marketplace.\n\nMCP server: https://api.ceki.me/mcp/agent\n\nSee SKILL.md in repo root for full reference."
+      }
+    }
+  ]
+}
