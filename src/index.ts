@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { z } from "zod";
 import { connect as sdkConnect, Client, Browser } from "@ceki/sdk";
@@ -11,6 +12,12 @@ import { connect as sdkConnect, Client, Browser } from "@ceki/sdk";
 
 const REMOTE_MCP = "https://api.ceki.me/mcp/agent";
 const PORT = parseInt(process.env.PORT || "3000", 10);
+
+/** Use stdio transport instead of HTTP/SSE (for mcp-proxy / Glama compatibility). */
+const USE_STDIO = process.argv.includes("--stdio") || process.env.MCP_TRANSPORT === "stdio";
+
+/** Global API key from env — fallback when no session key is set (stdio mode). */
+const GLOBAL_API_KEY = process.env.X_AGENT_KEY || undefined;
 
 // ---------------------------------------------------------------------------
 // Per-session and per-key state
@@ -32,9 +39,9 @@ const transports = new Map<string, SSEServerTransport>();
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Extract the API key for the current MCP session. */
+/** Extract the API key for the current MCP session. Falls back to X_AGENT_KEY env in stdio mode. */
 function getApiKey(extra?: { sessionId?: string }): string | undefined {
-  return extra?.sessionId ? apiKeysBySession.get(extra.sessionId) : undefined;
+  return (extra?.sessionId ? apiKeysBySession.get(extra.sessionId) : undefined) ?? GLOBAL_API_KEY;
 }
 
 /** Obtain (or create) a cached SDK Client for the given API key. */
@@ -795,28 +802,50 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
   }
 });
 
-httpServer.listen(PORT, () => {
-  console.error(`Ceki MCP Server v1.1.0 running on port ${PORT}`);
-  console.error(`Health:   http://localhost:${PORT}/`);
-  console.error(`SSE:      http://localhost:${PORT}/sse`);
-  console.error(`Messages: POST http://localhost:${PORT}/messages`);
-  console.error("");
-  console.error("Add to your MCP config (SSE, no auth for public tools):");
-  console.error(JSON.stringify({ mcpServers: { ceki: { url: `http://localhost:${PORT}/sse` } } }, null, 2));
-  console.error("");
-  console.error("With auth (for browser rental + authenticated tools):");
-  console.error(JSON.stringify({
-    mcpServers: {
-      ceki: {
-        url: `http://localhost:${PORT}/sse`,
-        headers: { "X-Agent-Key": "<your-api-key>" },
+// ---------------------------------------------------------------------------
+// Transport selection — stdio (mcp-proxy/Glama compatible) or HTTP/SSE
+// ---------------------------------------------------------------------------
+
+async function main() {
+  // ---- Stdio transport (for mcp-proxy, Glama, or direct CLI piping) ----
+  if (USE_STDIO) {
+    console.error(`Ceki MCP Server v1.1.0 — stdio transport`);
+    if (GLOBAL_API_KEY) {
+      console.error(`X-Agent-Key loaded from environment`);
+    } else {
+      console.error(`No X-Agent-Key set. Public tools only (register-agent, get-pricing, search-specialists).`);
+      console.error(`Set X_AGENT_KEY env var for authenticated tools + browser rental.`);
+    }
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    // process stays alive via stdin/stdout; cleanup on exit
+    return;
+  }
+
+  // ---- HTTP/SSE transport (direct remote connections) ----
+  httpServer.listen(PORT, () => {
+    console.error(`Ceki MCP Server v1.1.0 running on port ${PORT}`);
+    console.error(`Health:   http://localhost:${PORT}/`);
+    console.error(`SSE:      http://localhost:${PORT}/sse`);
+    console.error(`Messages: POST http://localhost:${PORT}/messages`);
+    console.error("");
+    console.error("Add to your MCP config (SSE, no auth for public tools):");
+    console.error(JSON.stringify({ mcpServers: { ceki: { url: `http://localhost:${PORT}/sse` } } }, null, 2));
+    console.error("");
+    console.error("With auth (for browser rental + authenticated tools):");
+    console.error(JSON.stringify({
+      mcpServers: {
+        ceki: {
+          url: `http://localhost:${PORT}/sse`,
+          headers: { "X-Agent-Key": "<your-api-key>" },
+        },
       },
-    },
-  }, null, 2));
-  console.error("");
-  console.error("Or connect directly to the remote endpoint:");
-  console.error(JSON.stringify({ mcpServers: { ceki: { url: "https://api.ceki.me/mcp/agent" } } }, null, 2));
-});
+    }, null, 2));
+    console.error("");
+    console.error("Or connect directly to the remote endpoint:");
+    console.error(JSON.stringify({ mcpServers: { ceki: { url: "https://api.ceki.me/mcp/agent" } } }, null, 2));
+  });
+}
 
 // ---- Graceful shutdown ----
 process.on("SIGINT", async () => {
@@ -840,8 +869,18 @@ process.on("SIGINT", async () => {
   }
   transports.clear();
 
-  httpServer.close(() => {
-    console.error("Server closed.");
+  // Close HTTP server if running
+  if (httpServer?.listening) {
+    httpServer.close(() => {
+      console.error("Server closed.");
+      process.exit(0);
+    });
+  } else {
     process.exit(0);
-  });
+  }
+});
+
+main().catch((err) => {
+  console.error("Fatal error:", err);
+  process.exit(1);
 });

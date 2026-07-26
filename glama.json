@@ -2,5 +2,10 @@
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "maintainers": [
     "iWedmak"
-  ]
+  ],
+  "transport": "stdio",
+  "stdio": {
+    "command": "node",
+    "args": ["dist/index.js", "--stdio"]
+  }
 }
