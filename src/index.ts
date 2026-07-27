@@ -125,9 +125,9 @@ server.tool(
 
 server.tool(
   "verify-email",
-  "Verify agent email with OTP code sent to the registered email address.",
+  "Verify agent email with the 6-digit OTP code sent during register-agent. On success the agent account is activated and the API key (X-Agent-Key) is generated — store it and use in subsequent authenticated calls. Call this AFTER register-agent. OTP codes expire after 10 minutes — if expired, use resend-verification first.",
   {
-    code: z.string().describe("6-digit OTP code from email"),
+    code: z.string().describe("6-digit OTP code from the verification email sent by register-agent"),
   },
   proxyHandler("verify-email"),
 );
@@ -213,9 +213,10 @@ server.tool(
 
 server.tool(
   "get-schedules",
-  "List all your bookings and scheduled sessions.",
+  "List your availability schedules (your calendar showing when others can book you). Returns paginated schedules with dates, hours, and booking status. For events where you booked a specialist (you are the client), use get-my-bookings instead.",
   {
-    status: z.enum(["upcoming", "completed", "cancelled"]).optional().describe("Filter by booking status"),
+    page: z.number().min(1).optional().describe("Page number (default: 1)"),
+    perPage: z.number().min(1).max(50).optional().describe("Results per page (default: 50, max: 50)"),
   },
   proxyHandler("get-schedules"),
 );
@@ -275,10 +276,10 @@ server.tool(
 
 server.tool(
   "create-topup-invoice",
-  "Create a top-up invoice to deposit funds to your AgentWallet. Returns a crypto deposit address for the requested USD amount.",
+  "Create a top-up invoice to deposit funds to your AgentWallet. Returns a one-time crypto deposit address for the requested USD amount. After sending crypto to this address, funds appear in your wallet after 3-30 minutes (depends on blockchain confirmations). Call get-crypto-list first to see available currency options. Call get-wallet after sending funds to verify receipt.",
   {
-    currency: z.string().describe("Currency in BLOCKCHAIN-TOKEN format (e.g. ETH-USDT)"),
-    amount_usd: z.number().min(5).describe("Amount in USD (minimum 5)"),
+    currency: z.string().describe("Currency in BLOCKCHAIN-TOKEN format, e.g. ETH-USDT (Ethereum), BTC-BTC (Bitcoin), TRX-USDT (TRON). Use get-crypto-list to see all options."),
+    amount_usd: z.number().min(5).max(10000).describe("Amount in USD. Minimum: 5. Maximum: 10000."),
   },
   proxyHandler("create-topup-invoice"),
 );
@@ -292,62 +293,62 @@ server.tool(
 
 server.tool(
   "post-job",
-  "Post a job vacancy. The job is publicly indexed and searchable by humans on Ceki.me.",
+  "Post a job vacancy. The job is publicly indexed and searchable by humans on Ceki.me. 0% platform commission. The listing stays active for 30 days or until filled. For one-off bookings instead of ongoing jobs, use book-event. Call get-my-jobs after posting to verify the listing is live.",
   {
-    title: z.string().describe("Job title"),
-    description: z.string().describe("Job description"),
-    skills: z.array(z.string()).describe("Required skills"),
-    budget: z.number().min(0).describe("Hourly budget / rate in USD"),
-    duration: z.number().min(1).optional().describe("Duration in minutes (default 60)"),
+    title: z.string().describe("Job title — visible in search results"),
+    description: z.string().describe("Job description — full details about the role, requirements, and expectations"),
+    skills: z.array(z.string()).describe("Required skills keywords (e.g. ['Python', 'FastAPI', 'PostgreSQL'])"),
+    budget: z.number().min(0).describe("Hourly rate in USD. Total earnings = budget × duration in hours."),
+    duration: z.number().min(1).optional().describe("Duration in minutes. Default: 60 (1 hour)."),
     date: z.string().optional().describe("Start date (YYYY-MM-DD)"),
-    start: z.string().optional().describe("Working hours start (HH:MM)"),
-    end: z.string().optional().describe("Working hours end (HH:MM)"),
-    days: z.array(z.number().min(1).max(7)).optional().describe("Working days (ISO 1-7, Mon=1)"),
-    timezone: z.string().optional().describe("IANA timezone, e.g. Europe/Berlin"),
-    language: z.string().optional().describe("Preferred language code"),
+    start: z.string().optional().describe("Working hours start (HH:MM, 24-hour format)"),
+    end: z.string().optional().describe("Working hours end (HH:MM, 24-hour format)"),
+    days: z.array(z.number().min(1).max(7)).optional().describe("Working days (ISO weekday numbers: 1=Monday through 7=Sunday)"),
+    timezone: z.string().optional().describe("IANA timezone, e.g. 'Europe/Berlin', 'America/New_York'"),
+    language: z.string().optional().describe("Preferred language code, e.g. 'en', 'ru', 'de'"),
   },
   proxyHandler("post-job"),
 );
 
 server.tool(
   "get-my-jobs",
-  "List your active job vacancies.",
+  "List job vacancies you posted via post-job. Shows title, budget, status, and applications for each listing. Call this AFTER post-job to confirm your listing is live and publicly indexed.",
   {
-    page: z.number().min(1).optional().describe("Page number"),
-    perPage: z.number().min(1).max(50).optional().describe("Results per page"),
+    page: z.number().min(1).optional().describe("Page number (default: 1)"),
+    perPage: z.number().min(1).max(50).optional().describe("Results per page (default: 50, max: 50)"),
   },
   proxyHandler("get-my-jobs"),
 );
 
 server.tool(
   "book-event",
-  "Book a time slot with a specialist. Creates a pending event with crypto escrow held automatically.",
+  "Book a time slot with a specialist. Creates a booking with crypto escrow held automatically from your AgentWallet — the specialist is paid after completion. Initial status is 'pending' and changes to 'confirmed' when accepted. Call this AFTER: 1) search-specialists to find available specialists, 2) get-user to review their profile and schedule.",
   {
-    kal_schedule_id: z.number().describe("Schedule ID to book (from search-specialists results)"),
-    date: z.string().optional().describe("Booking date (YYYY-MM-DD)"),
-    start: z.string().optional().describe("Start time (HH:MM)"),
-    end: z.string().optional().describe("End time (HH:MM)"),
-    description: z.string().optional().describe("Booking description / notes"),
+    kal_schedule_id: z.number().describe("The specialist's schedule ID from search-specialists results. Each specialist has one or more available schedule IDs."),
+    date: z.string().optional().describe("Booking date in YYYY-MM-DD format"),
+    start: z.string().optional().describe("Start time in HH:MM format (24-hour)"),
+    end: z.string().optional().describe("End time in HH:MM format (24-hour)"),
+    description: z.string().optional().describe("What you need done — shared with the specialist"),
   },
   proxyHandler("book-event"),
 );
 
 server.tool(
   "get-my-bookings",
-  "List your booking events.",
+  "List booking events where YOU are the client (you booked a specialist). Shows pending, upcoming, and completed bookings with specialist details, dates, and payment status. Call this AFTER book-event to verify the booking was created. For your own availability calendar (when others book you), use get-schedules instead.",
   {
-    page: z.number().min(1).optional().describe("Page number"),
-    perPage: z.number().min(1).max(50).optional().describe("Results per page"),
+    page: z.number().min(1).optional().describe("Page number (default: 1)"),
+    perPage: z.number().min(1).max(50).optional().describe("Results per page (default: 50, max: 50)"),
   },
   proxyHandler("get-my-bookings"),
 );
 
 server.tool(
   "get-wallet-transactions",
-  "View transaction history: deposits, payments, withdrawals.",
+  "View your wallet transaction history: deposits (from top-ups), payments (for bookings/rentals), and withdrawals. Read-only. Call this after create-topup-invoice to confirm funds arrived, or after request-withdrawal to track withdrawal status.",
   {
-    type: z.enum(["all", "deposit", "payment", "withdrawal"]).optional().describe("Filter by transaction type"),
-    page: z.number().optional().describe("Page number for pagination"),
+    offset: z.number().min(0).optional().describe("Pagination offset (default: 0)"),
+    limit: z.number().min(1).max(100).optional().describe("Results per page (default: 20, max: 100)"),
   },
   proxyHandler("get-wallet-transactions"),
 );
@@ -361,10 +362,10 @@ server.tool(
 
 server.tool(
   "request-withdrawal",
-  "Request crypto withdrawal from your wallet to an external address.",
+  "Request a crypto withdrawal from your AgentWallet to an external wallet address. Processing time: 10-30 minutes depending on blockchain congestion. Check the recipient network matches your wallet's blockchain — sending ETH-USDT to a BTC address will lose the funds permanently. Call get-wallet first to check your available balance. Withdrawal fees vary by blockchain and are deducted from the withdrawn amount.",
   {
-    amount: z.number().positive().describe("Amount to withdraw"),
-    address: z.string().describe("Destination crypto wallet address"),
+    amount: z.number().positive().describe("Amount to withdraw in USD (not crypto units). Must not exceed your wallet balance minus network fees."),
+    address: z.string().describe("Destination crypto wallet address. Must match your wallet's blockchain network (e.g. send ERC-20 tokens to an Ethereum address, TRC-20 to a TRON address)."),
   },
   proxyHandler("request-withdrawal"),
 );
@@ -462,10 +463,10 @@ server.tool(
 
 server.tool(
   "browser-navigate",
-  "Navigate the rented browser to a URL.",
+  "Navigate the rented browser to a URL. Waits for the page to fully load (including sub-resources, or until timeout). Returns the final URL and page title after navigation (handles redirects). If the page fails to load (4xx, 5xx, timeout) returns the error. Call this AFTER rent-browser.",
   {
-    url: z.string().describe("Full URL to navigate to (https://...)"),
-    timeout: z.number().optional().describe("Timeout in ms (default 30000)"),
+    url: z.string().describe("Full URL including protocol, e.g. https://example.com/page"),
+    timeout: z.number().optional().describe("Maximum wait time in milliseconds. Default: 30000 (30s). Increase for slow sites."),
   },
   async (args, extra) => {
     const sessionId = extra.sessionId;
@@ -506,10 +507,10 @@ server.tool(
 
 server.tool(
   "browser-click",
-  "Click at specific coordinates in the rented browser page.",
+  "Single left-click at specific viewport coordinates in the rented browser. After clicking, waits briefly for any resulting navigation or page update. Use browser-screenshot after clicking to verify the result. To type text into an input field: click it first to focus it, then use browser-type. Call this AFTER rent-browser and browser-navigate.",
   {
-    x: z.number().describe("X coordinate"),
-    y: z.number().describe("Y coordinate"),
+    x: z.number().describe("X coordinate relative to the viewport (pixels from left edge). Use browser-screenshot first to identify coordinates."),
+    y: z.number().describe("Y coordinate relative to the viewport (pixels from top edge). Use browser-screenshot first to identify coordinates."),
   },
   async (args, extra) => {
     const sessionId = extra.sessionId;
@@ -549,10 +550,10 @@ server.tool(
 
 server.tool(
   "browser-scroll",
-  "Scroll the rented browser page.",
+  "Scroll the rented browser page by delta pixels. Positive Y scrolls down, negative Y scrolls up. Positive X scrolls right, negative X scrolls left. Use this to reveal content below the viewport before taking a screenshot. Call this AFTER rent-browser and browser-navigate.",
   {
-    x: z.number().optional().describe("Horizontal scroll delta"),
-    y: z.number().optional().describe("Vertical scroll delta"),
+    x: z.number().optional().describe("Horizontal scroll delta in pixels. Negative = left, positive = right. Default: 0"),
+    y: z.number().optional().describe("Vertical scroll delta in pixels. Negative = up, positive = down. Default: 0"),
   },
   async (args, extra) => {
     const sessionId = extra.sessionId;
